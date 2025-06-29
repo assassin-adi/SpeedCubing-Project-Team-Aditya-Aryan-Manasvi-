@@ -18,7 +18,12 @@ def color_match(rgb):
             return name
     return '?'
 
-# --- Calibration ---
+def rotate(grid):
+    return [ [grid[2-j][i] for j in range(3)] for i in range(3) ]
+
+def mirror(grid):
+    return [row[::-1] for row in grid]
+
 while i < 6:
     x, frame = cap.read()
     if not x:
@@ -30,7 +35,6 @@ while i < 6:
     x2 = width // 2 + square_size // 2
     y2 = height // 2 + square_size // 2
     centre = (width // 2, height // 2)
-  
     key = cv2.waitKey(1)
     if key == 27:  
         break
@@ -39,7 +43,6 @@ while i < 6:
         calibrated_colors[face[i]] = rgb
         print(f"Calibrated {face[i]}: {rgb}")
         i += 1
-
     if i < 6:
         cv2.putText(frame, f"Scanned:{i}/6", (10, 30), cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 2)
         cv2.putText(frame, f"Scan:{face[i]}", (10, 60), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
@@ -48,21 +51,19 @@ while i < 6:
         cv2.imshow("Webcam", frame)
 
 face_dic = {}
-scanned_faces = 0  # <-- Only increment, never reset
+scanned_faces = 0
 
 while True:
     positions = []
     _, frame = cap.read()
     h, w = frame.shape[:2]
     cx, cy = w // 2, h // 2
-
     for i in [-80, 0, 80]:
         for j in [-80, 0, 80]:
             x = cx + i
             y = cy + j
             positions.append((x, y))
             cv2.circle(frame, (x, y), 10, (255, 255, 255), 2)
-
     square_size = 250
     x1 = width // 2 - square_size // 2
     y1 = height // 2 - square_size // 2
@@ -70,11 +71,8 @@ while True:
     y2 = height // 2 + square_size // 2
     centre = (width // 2, height // 2)
     cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 3)
-
     facelet = []
     face_color = [['' for _ in range(3)] for _ in range(3)]
-
-    # Fill facelet and face_color in row-major order
     k = 0
     for row in range(3):
         for col in range(3):
@@ -82,27 +80,23 @@ while True:
             facelet.append(f)
             face_color[row][col] = color_match(f)
             k += 1
-
-    # Preview box (top right)
+    rotated_facelet = rotate([facelet[0:3], facelet[3:6], facelet[6:9]])
+    mirrored_rotated_facelet = mirror(rotated_facelet)
     px, py, box = w - 90, 20, 20
-    k = 0
     for row in range(3):
         for col in range(3):
-            rgb = facelet[k]
+            rgb = mirrored_rotated_facelet[row][col]
             bgr = (rgb[2], rgb[1], rgb[0])
             x1 = px + col * box
             y1 = py + row * box
             cv2.rectangle(frame, (x1, y1), (x1 + box, y1 + box), bgr, -1)
             cv2.rectangle(frame, (x1, y1), (x1 + box, y1 + box), (100, 100, 100), 1)
-            k += 1
-
     cv2.imshow("Webcam", frame)
     key = cv2.waitKey(1)
-
     if key == 27:
         break
     elif key == 32:
-        x = face_color[1][1]  # center facelet color
+        x = face_color[1][1]
         if x in face_dic:
             print(f"Face {x} already scanned.")
         else:
@@ -118,6 +112,7 @@ print(face_dic)
 
 cap.release()
 cv2.destroyAllWindows()
+
 
 
 
